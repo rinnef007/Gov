@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sửa chữa định kỳ - Quản lý công trình</title>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; background: #f0f4f8; color: #2d3748; }
+
+  /* HEADER */
+  .header { background: linear-gradient(135deg, #1a3a5c 0%, #2b6cb0 100%); color: #fff; padding: 14px 20px; display: flex; align-items: center; gap: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+  .header h1 { font-size: 17px; font-weight: 700; letter-spacing: .3px; }
+  .header-badge { background: rgba(255,255,255,.18); border-radius: 6px; padding: 3px 10px; font-size: 12px; }
+
+  /* TOOLBAR */
+  .toolbar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  .search-box { position: relative; flex: 1; min-width: 200px; max-width: 360px; }
+  .search-box input { width: 100%; padding: 7px 32px 7px 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; outline: none; transition: border .2s; }
+  .search-box input:focus { border-color: #4299e1; box-shadow: 0 0 0 3px rgba(66,153,225,.2); }
+  .search-box .ico { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); color: #a0aec0; pointer-events: none; }
+  .filter-select { padding: 7px 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; outline: none; cursor: pointer; background: #fff; min-width: 140px; }
+  .filter-select:focus { border-color: #4299e1; }
+
+  /* BUTTONS */
+  .btn { padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 5px; transition: background .15s, transform .1s; white-space: nowrap; }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: #3182ce; color: #fff; }
+  .btn-primary:hover { background: #2b6cb0; }
+  .btn-success { background: #38a169; color: #fff; }
+  .btn-success:hover { background: #2f855a; }
+  .btn-warning { background: #d69e2e; color: #fff; }
+  .btn-warning:hover { background: #b7791f; }
+  .btn-danger { background: #e53e3e; color: #fff; }
+  .btn-danger:hover { background: #c53030; }
+  .btn-info { background: #0bc5ea; color: #fff; }
+  .btn-info:hover { background: #00a3c4; }
+  .btn-sm { padding: 4px 9px; font-size: 12px; }
+  .btn-outline { background: transparent; border: 1px solid #cbd5e0; color: #4a5568; }
+  .btn-outline:hover { background: #f7fafc; }
+
+  /* STATS */
+  .stats { padding: 8px 16px; display: flex; gap: 16px; background: #fff; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; }
+  .stat { font-size: 12px; color: #718096; }
+  .stat strong { color: #2d3748; font-size: 13px; }
+
+  /* TABLE WRAPPER */
+  .table-wrapper { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 170px); }
+  table { width: 100%; border-collapse: collapse; min-width: 1800px; }
+  thead th { position: sticky; top: 0; z-index: 50; background: #1a3a5c; color: #fff; font-weight: 600; font-size: 12px; padding: 9px 8px; text-align: center; white-space: nowrap; border-right: 1px solid rgba(255,255,255,.12); cursor: pointer; user-select: none; }
+  thead th:hover { background: #2b6cb0; }
+  thead th.sort-asc::after { content: " ▲"; font-size: 10px; }
+  thead th.sort-desc::after { content: " ▼"; font-size: 10px; }
+  thead tr.sub-header th { background: #2c5282; font-size: 11px; position: sticky; top: 38px; z-index: 49; cursor: default; }
+  thead tr.sub-header th:hover { background: #2c5282; }
+
+  tbody tr { border-bottom: 1px solid #e2e8f0; transition: background .12s; }
+  tbody tr:hover { background: #ebf8ff; }
+  tbody tr.group-first { border-top: 2px solid #bee3f8; }
+  tbody tr.group-other td.project-cell { background: #f0f8ff; color: #718096; font-style: italic; font-size: 11px; }
+  td { padding: 7px 8px; vertical-align: middle; border-right: 1px solid #e8ecf2; max-width: 300px; }
+  td.number { text-align: right; font-variant-numeric: tabular-nums; }
+  td.center { text-align: center; }
+  td.actions { text-align: center; white-space: nowrap; min-width: 90px; position: sticky; right: 0; background: inherit; }
+  tbody tr:hover td.actions { background: #ebf8ff; }
+  td.truncate { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help; }
+  td.idx { text-align: center; color: #a0aec0; font-size: 11px; min-width: 36px; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: #c6f6d5; color: #22543d; }
+  .badge-yellow { background: #fefcbf; color: #744210; }
+  .badge-red { background: #fed7d7; color: #742a2a; }
+  .badge-blue { background: #bee3f8; color: #2a4365; }
+  .badge-gray { background: #e2e8f0; color: #4a5568; }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; align-items: flex-start; justify-content: center; padding-top: 40px; overflow-y: auto; }
+  .modal-overlay.active { display: flex; }
+  .modal { background: #fff; border-radius: 10px; width: 96%; max-width: 820px; box-shadow: 0 20px 60px rgba(0,0,0,.3); margin-bottom: 40px; }
+  .modal-header { background: linear-gradient(135deg, #1a3a5c, #2b6cb0); color: #fff; padding: 14px 18px; border-radius: 10px 10px 0 0; display: flex; justify-content: space-between; align-items: center; }
+  .modal-header h2 { font-size: 15px; }
+  .modal-close { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 0 4px; line-height: 1; opacity: .8; }
+  .modal-close:hover { opacity: 1; }
+  .modal-body { padding: 18px; max-height: 70vh; overflow-y: auto; }
+  .modal-footer { padding: 12px 18px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group label { font-size: 12px; font-weight: 600; color: #4a5568; }
+  .form-group label .req { color: #e53e3e; }
+  .form-group input, .form-group select, .form-group textarea { padding: 7px 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; outline: none; transition: border .2s; font-family: inherit; background: #fff; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #4299e1; box-shadow: 0 0 0 3px rgba(66,153,225,.2); }
+  .form-group textarea { resize: vertical; min-height: 60px; }
+  .form-divider { grid-column: 1 / -1; border: none; border-top: 1px dashed #e2e8f0; margin: 4px 0; }
+  .form-section-title { grid-column: 1 / -1; font-size: 12px; font-weight: 700; color: #2b6cb0; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
+
+  /* CONFIRM MODAL */
+  .confirm-modal { max-width: 420px; }
+  .confirm-body { padding: 20px 18px; text-align: center; }
+  .confirm-icon { font-size: 42px; margin-bottom: 10px; }
+  .confirm-body p { color: #4a5568; line-height: 1.6; }
+
+  /* PAGINATION */
+  .pagination { padding: 8px 16px; background: #fff; border-top: 1px solid #e2e8f0; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .page-btn { padding: 5px 10px; border: 1px solid #cbd5e0; background: #fff; border-radius: 5px; cursor: pointer; font-size: 13px; min-width: 34px; text-align: center; }
+  .page-btn:hover { background: #ebf8ff; border-color: #4299e1; }
+  .page-btn.active { background: #3182ce; color: #fff; border-color: #3182ce; }
+  .page-info { font-size: 12px; color: #718096; margin-left: 8px; }
+  .page-size-select { padding: 5px 8px; border: 1px solid #cbd5e0; border-radius: 5px; font-size: 13px; margin-left: auto; }
+
+  /* RESPONSIVE */
+  @media (max-width: 600px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .form-group.full { grid-column: 1; }
+  }
+  .empty-state { text-align: center; padding: 48px; color: #a0aec0; }
+  .empty-state .ico { font-size: 48px; margin-bottom: 12px; }
+
+  .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; }
+  .toast { padding: 10px 16px; border-radius: 8px; color: #fff; font-size: 13px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,.2); animation: slideIn .3s ease; max-width: 300px; }
+  .toast-success { background: #38a169; }
+  .toast-error { background: #e53e3e; }
+  .toast-info { background: #3182ce; }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes slideOut { from { transform: none; opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div style="font-size:11px;opacity:.7;margin-bottom:2px;">HỆ THỐNG QUẢN LÝ</div>
+    <h1>Sửa chữa định kỳ công trình đường bộ</h1>
+  </div>
+  <div class="header-badge">SuaChuaDinhKy</div>
+</div>
+
+<div class="toolbar">
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="Tìm kiếm theo tên công trình, hạng mục, lý trình..." oninput="onSearch()">
+    <span class="ico">&#128269;</span>
+  </div>
+  <select class="filter-select" id="filterTuyen" onchange="onFilter()">
+    <option value="">-- Tất cả tuyến --</option>
+  </select>
+  <select class="filter-select" id="filterTinhTrang" onchange="onFilter()">
+    <option value="">-- Tất cả tình trạng --</option>
+  </select>
+  <button class="btn btn-outline" onclick="clearFilters()">&#10007; Xoá lọc</button>
+  <div style="flex:1"></div>
+  <button class="btn btn-primary" onclick="openAdd()">&#43; Thêm mới</button>
+  <button class="btn btn-success" onclick="exportExcel()">&#8659; Xuất Excel</button>
+  <label class="btn btn-warning" style="cursor:pointer;">&#8657; Nhập Excel <input type="file" id="importFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importExcel(this)"></label>
+</div>
+
+<div class="stats">
+  <div class="stat">Tổng bản ghi: <strong id="statTotal">0</strong></div>
+  <div class="stat">Hiển thị: <strong id="statShown">0</strong></div>
+  <div class="stat">Công trình: <strong id="statProjects">0</strong></div>
+  <div class="stat">Tuyến: <strong id="statTuyen">0</strong></div>
+</div>
+
+<div class="table-wrapper">
+  <table id="mainTable">
+    <thead>
+      <tr>
+        <th rowspan="3" style="min-width:36px">#</th>
+        <th rowspan="3" onclick="sortBy('lo_tuyen')" style="min-width:110px">Tuyến đường</th>
+        <th rowspan="3" onclick="sortBy('tenCongTrinh')" style="min-width:260px">Công trình / Dự án</th>
+        <th rowspan="3" onclick="sortBy('tinhTrang')" style="min-width:110px">Tình trạng</th>
+        <th rowspan="3" onclick="sortBy('tongMucDauTu')" style="min-width:130px">Tổng mức đầu tư</th>
+        <th rowspan="3" onclick="sortBy('donViThietKe')" style="min-width:110px">ĐV Thiết kế</th>
+        <th rowspan="3" onclick="sortBy('donViGiamSat')" style="min-width:110px">ĐV Giám sát</th>
+        <th rowspan="3" onclick="sortBy('donViThiCong')" style="min-width:110px">ĐV Thi công</th>
+        <th colspan="2" style="min-width:200px">Thi công</th>
+        <th colspan="2" style="min-width:200px">Bàn giao</th>
+        <th colspan="2" style="min-width:200px">Bảo hành</th>
+        <th colspan="2" style="min-width:200px">Xoá bảo hành</th>
+        <th rowspan="3" onclick="sortBy('tenHangMuc')" style="min-width:200px">Hạng mục</th>
+        <th rowspan="3" onclick="sortBy('lyTrinhDau')" style="min-width:110px">Lý trình đầu</th>
+        <th rowspan="3" onclick="sortBy('lyTrinhCuoi')" style="min-width:110px">Lý trình cuối</th>
+        <th rowspan="3" onclick="sortBy('khoiLuong')" style="min-width:90px">Khối lượng</th>
+        <th rowspan="3" onclick="sortBy('donViTinh')" style="min-width:80px">ĐVT</th>
+        <th rowspan="3" style="min-width:90px;position:sticky;right:0;background:#1a3a5c">Thao tác</th>
+      </tr>
+      <tr class="sub-header">
+        <th onclick="sortBy('tuNgayThiCong')">Từ ngày</th>
+        <th onclick="sortBy('denNgayThiCong')">Đến ngày</th>
+        <th onclick="sortBy('ngayBanGiao')">Ngày BG</th>
+        <th onclick="sortBy('soBienBanBanGiao')">Số BB</th>
+        <th onclick="sortBy('tuNgayBaoHanh')">Từ ngày</th>
+        <th onclick="sortBy('denNgayBaoHanh')">Đến ngày</th>
+        <th onclick="sortBy('ngayXoaBaoHanh')">Ngày xoá</th>
+        <th onclick="sortBy('soBienBanXoaBaoHanh')">Số BB xoá</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div id="emptyState" class="empty-state" style="display:none">
+    <div class="ico">&#128203;</div>
+    <p>Không tìm thấy dữ liệu phù hợp</p>
+  </div>
+</div>
+
+<div class="pagination" id="pagination"></div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="formModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="formModalTitle">Thêm mới bản ghi</h2>
+      <button class="modal-close" onclick="closeFormModal()">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Tuyến đường <span class="req">*</span></label>
+          <input type="text" id="f_lo_tuyen" placeholder="VD: CT.HN_HP_CT04">
+        </div>
+        <div class="form-group">
+          <label>Tình trạng</label>
+          <select id="f_tinhTrang">
+            <option value="">-- Chọn --</option>
+            <option>Đang bảo hành</option>
+            <option>Hết bảo hành</option>
+            <option>Đang thi công</option>
+            <option>Hoàn thành</option>
+            <option>Tạm dừng</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>Tên công trình / Dự án <span class="req">*</span></label>
+          <textarea id="f_tenCongTrinh" rows="3" placeholder="Nhập tên công trình..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Tổng mức đầu tư (VNĐ)</label>
+          <input type="number" id="f_tongMucDauTu" placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>Đơn vị thiết kế</label>
+          <input type="text" id="f_donViThietKe" placeholder="Tên đơn vị...">
+        </div>
+        <div class="form-group">
+          <label>Đơn vị giám sát</label>
+          <input type="text" id="f_donViGiamSat" placeholder="Tên đơn vị...">
+        </div>
+        <div class="form-group">
+          <label>Đơn vị thi công</label>
+          <input type="text" id="f_donViThiCong" placeholder="Tên đơn vị...">
+        </div>
+        <hr class="form-divider">
+        <div class="form-section-title">Tiến độ thi công</div>
+        <div class="form-group">
+          <label>Thi công từ ngày</label>
+          <input type="date" id="f_tuNgayThiCong">
+        </div>
+        <div class="form-group">
+          <label>Thi công đến ngày</label>
+          <input type="date" id="f_denNgayThiCong">
+        </div>
+        <div class="form-group">
+          <label>Ngày bàn giao</label>
+          <input type="date" id="f_ngayBanGiao">
+        </div>
+        <div class="form-group">
+          <label>Số biên bản bàn giao</label>
+          <input type="text" id="f_soBienBanBanGiao" placeholder="Số BB...">
+        </div>
+        <hr class="form-divider">
+        <div class="form-section-title">Bảo hành</div>
+        <div class="form-group">
+          <label>Bảo hành từ ngày</label>
+          <input type="date" id="f_tuNgayBaoHanh">
+        </div>
+        <div class="form-group">
+          <label>Bảo hành đến ngày</label>
+          <input type="date" id="f_denNgayBaoHanh">
+        </div>
+        <div class="form-group">
+          <label>Ngày xoá bảo hành</label>
+          <input type="date" id="f_ngayXoaBaoHanh">
+        </div>
+        <div class="form-group">
+          <label>Số biên bản xoá bảo hành</label>
+          <input type="text" id="f_soBienBanXoaBaoHanh" placeholder="Số BB...">
+        </div>
+        <hr class="form-divider">
+        <div class="form-section-title">Hạng mục sửa chữa</div>
+        <div class="form-group full">
+          <label>Hạng mục <span class="req">*</span></label>
+          <textarea id="f_tenHangMuc" rows="2" placeholder="Tên hạng mục..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Lý trình đầu</label>
+          <input type="text" id="f_lyTrinhDau" placeholder="VD: Km10+300">
+        </div>
+        <div class="form-group">
+          <label>Lý trình cuối</label>
+          <input type="text" id="f_lyTrinhCuoi" placeholder="VD: Km10+500">
+        </div>
+        <div class="form-group">
+          <label>Khối lượng</label>
+          <input type="number" id="f_khoiLuong" placeholder="0" step="any" min="0">
+        </div>
+        <div class="form-group">
+          <label>Đơn vị tính</label>
+          <input type="text" id="f_donViTinh" placeholder="VD: m, cái, bộ...">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeFormModal()">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveRecord()">&#10003; Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DELETE MODAL -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal confirm-modal">
+    <div class="modal-header" style="background:linear-gradient(135deg,#c53030,#e53e3e)">
+      <h2>Xác nhận xoá</h2>
+      <button class="modal-close" onclick="closeConfirm()">&#10005;</button>
+    </div>
+    <div class="confirm-body">
+      <div class="confirm-icon">&#128465;</div>
+      <p>Bạn có chắc chắn muốn xoá bản ghi này?<br><strong id="confirmDesc"></strong></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeConfirm()">Huỷ</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">&#10007; Xoá</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW DETAIL MODAL -->
+<div class="modal-overlay" id="viewModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Chi tiết bản ghi</h2>
+      <button class="modal-close" onclick="closeView()">&#10005;</button>
+    </div>
+    <div class="modal-body" id="viewBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeView()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ==================== DATA ====================
+const INITIAL_DATA = [
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH01-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản số 250509.05/CT-KTCN ngày 09/05/2025 của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 320984434.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2025-10-21",
+    "denNgayThiCong": "2026-12-31",
+    "ngayBanGiao": "2026-12-31",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2025-12-31",
+    "denNgayBaoHanh": "2026-12-31",
+    "ngayXoaBaoHanh": "2026-12-31",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Biển báo VMS trạm KTTTX;",
+    "lyTrinhDau": "Km10+300",
+    "lyTrinhCuoi": "Km10+300",
+    "khoiLuong": 1.0,
+    "donViTinh": "bộ",
+    "id": 1
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH01-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản số 250509.05/CT-KTCN ngày 09/05/2025 của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 320984434.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2025-10-21",
+    "denNgayThiCong": "2026-12-31",
+    "ngayBanGiao": "2026-12-31",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2025-12-31",
+    "denNgayBaoHanh": "2026-12-31",
+    "ngayXoaBaoHanh": "2026-12-31",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "UPS 10KvA;",
+    "lyTrinhDau": "Km49+600",
+    "lyTrinhCuoi": "Km49+600",
+    "khoiLuong": 1.0,
+    "donViTinh": "cái",
+    "id": 2
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH01-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản số 250509.05/CT-KTCN ngày 09/05/2025 của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 320984434.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2025-10-21",
+    "denNgayThiCong": "2026-12-31",
+    "ngayBanGiao": "2026-12-31",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2025-12-31",
+    "denNgayBaoHanh": "2026-12-31",
+    "ngayXoaBaoHanh": "2026-12-31",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Biển báo VMS trạm KTTTX;",
+    "lyTrinhDau": "Km49+600",
+    "lyTrinhCuoi": "Km49+600",
+    "khoiLuong": 1.0,
+    "donViTinh": "bộ",
+    "id": 3
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH01-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản số 250509.05/CT-KTCN ngày 09/05/2025 của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 320984434.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2025-10-21",
+    "denNgayThiCong": "2026-12-31",
+    "ngayBanGiao": "2026-12-31",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2025-12-31",
+    "denNgayBaoHanh": "2026-12-31",
+    "ngayXoaBaoHanh": "2026-12-31",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Biển báo điện tử hiển thị thông tin xe;",
+    "lyTrinhDau": "Km94+850",
+    "lyTrinhCuoi": "Km94+850",
+    "khoiLuong": 1.0,
+    "donViTinh": "bộ",
+    "id": 4
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH01-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản số 250509.05/CT-KTCN ngày 09/05/2025 của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 320984434.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2025-10-21",
+    "denNgayThiCong": "2026-12-31",
+    "ngayBanGiao": "2026-12-31",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2025-12-31",
+    "denNgayBaoHanh": "2026-12-31",
+    "ngayXoaBaoHanh": "2026-12-31",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Loa cầu vượt;",
+    "lyTrinhDau": "Km27+260",
+    "lyTrinhCuoi": "Km27+260",
+    "khoiLuong": 1.0,
+    "donViTinh": "dv",
+    "id": 5
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH01-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản số 250509.05/CT-KTCN ngày 09/05/2025 của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 320984434.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2025-10-21",
+    "denNgayThiCong": "2026-12-31",
+    "ngayBanGiao": "2026-12-31",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2025-12-31",
+    "denNgayBaoHanh": "2026-12-31",
+    "ngayXoaBaoHanh": "2026-12-31",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Camera cầu vượt",
+    "lyTrinhDau": "Km08+355",
+    "lyTrinhCuoi": "Km08+355",
+    "khoiLuong": 1.0,
+    "donViTinh": "cái",
+    "id": 6
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH02-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các vị trí cáp quang trọng yếu thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội - Hải Phòng (theo Văn bản số 250619.02/CT-QLVH ngày 19/06/2025 của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 386701927.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-01-06",
+    "denNgayThiCong": "2026-03-07",
+    "ngayBanGiao": "2026-03-07",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-03-07",
+    "denNgayBaoHanh": "2027-03-07",
+    "ngayXoaBaoHanh": "2027-03-07",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Đường cáp quang 72 core",
+    "lyTrinhDau": "Km12+050 HN-HP",
+    "lyTrinhCuoi": "Km12+125 HN-HP",
+    "khoiLuong": 70.0,
+    "donViTinh": "m",
+    "id": 7
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH02-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các vị trí cáp quang trọng yếu thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội - Hải Phòng (theo Văn bản số 250619.02/CT-QLVH ngày 19/06/2025 của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 386701927.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-01-06",
+    "denNgayThiCong": "2026-03-07",
+    "ngayBanGiao": "2026-03-07",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-03-07",
+    "denNgayBaoHanh": "2027-03-07",
+    "ngayXoaBaoHanh": "2027-03-07",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Đường cáp quang 72 core",
+    "lyTrinhDau": "Km94+700 HN-HP",
+    "lyTrinhCuoi": "Km94+800 HN-HP",
+    "khoiLuong": 100.0,
+    "donViTinh": "m",
+    "id": 8
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH02-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các vị trí cáp quang trọng yếu thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội - Hải Phòng (theo Văn bản số 250619.02/CT-QLVH ngày 19/06/2025 của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 386701927.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-01-06",
+    "denNgayThiCong": "2026-03-07",
+    "ngayBanGiao": "2026-03-07",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-03-07",
+    "denNgayBaoHanh": "2027-03-07",
+    "ngayXoaBaoHanh": "2027-03-07",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Đường cáp quang 72 core",
+    "lyTrinhDau": "Trạm thu phí QL10",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 100.0,
+    "donViTinh": "m",
+    "id": 9
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH02-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các vị trí cáp quang trọng yếu thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội - Hải Phòng (theo Văn bản số 250619.02/CT-QLVH ngày 19/06/2025 của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 386701927.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-01-06",
+    "denNgayThiCong": "2026-03-07",
+    "ngayBanGiao": "2026-03-07",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-03-07",
+    "denNgayBaoHanh": "2027-03-07",
+    "ngayXoaBaoHanh": "2027-03-07",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Đường cáp quang 72 core",
+    "lyTrinhDau": "Km21+030 HN-HP",
+    "lyTrinhCuoi": "Km21+230 HN-HP",
+    "khoiLuong": 200.0,
+    "donViTinh": "m",
+    "id": 10
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH02-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các vị trí cáp quang trọng yếu thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội - Hải Phòng (theo Văn bản số 250619.02/CT-QLVH ngày 19/06/2025 của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 386701927.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-01-06",
+    "denNgayThiCong": "2026-03-07",
+    "ngayBanGiao": "2026-03-07",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-03-07",
+    "denNgayBaoHanh": "2027-03-07",
+    "ngayXoaBaoHanh": "2027-03-07",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Đường cáp quang 04 core",
+    "lyTrinhDau": "Km21+030 HN-HP",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 300.0,
+    "donViTinh": "m",
+    "id": 11
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH02-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các vị trí cáp quang trọng yếu thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội - Hải Phòng (theo Văn bản số 250619.02/CT-QLVH ngày 19/06/2025 của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 386701927.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-01-06",
+    "denNgayThiCong": "2026-03-07",
+    "ngayBanGiao": "2026-03-07",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-03-07",
+    "denNgayBaoHanh": "2027-03-07",
+    "ngayXoaBaoHanh": "2027-03-07",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Đường cáp quang 04 core",
+    "lyTrinhDau": "Km89+340 HN-HP",
+    "lyTrinhCuoi": "Km89+440 HN-HP",
+    "khoiLuong": 100.0,
+    "donViTinh": "m",
+    "id": 12
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH02-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các vị trí cáp quang trọng yếu thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội - Hải Phòng (theo Văn bản số 250619.02/CT-QLVH ngày 19/06/2025 của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 386701927.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-01-06",
+    "denNgayThiCong": "2026-03-07",
+    "ngayBanGiao": "2026-03-07",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-03-07",
+    "denNgayBaoHanh": "2027-03-07",
+    "ngayXoaBaoHanh": "2027-03-07",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Đường cáp quang 04 core",
+    "lyTrinhDau": "Km01+960 HN-HP",
+    "lyTrinhCuoi": "Km00+140 HP H-",
+    "khoiLuong": 1579.0,
+    "donViTinh": "m",
+    "id": 13
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH03-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản 250609.02/CТQLVH, Văn bản số 250709.02/CT-QLVH và Văn bản số 250807.04/CT-QLAH của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 327323714.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-03-06",
+    "denNgayThiCong": "2026-05-05",
+    "ngayBanGiao": "2026-05-05",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-05-05",
+    "denNgayBaoHanh": "2027-05-05",
+    "ngayXoaBaoHanh": "2027-05-05",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Biển LED trên giá long môn (Làn 3 )",
+    "lyTrinhDau": "Km10+300",
+    "lyTrinhCuoi": null,
+    "khoiLuong": null,
+    "donViTinh": null,
+    "id": 14
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH03-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản 250609.02/CТQLVH, Văn bản số 250709.02/CT-QLVH và Văn bản số 250807.04/CT-QLAH của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 327323714.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-03-06",
+    "denNgayThiCong": "2026-05-05",
+    "ngayBanGiao": "2026-05-05",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-05-05",
+    "denNgayBaoHanh": "2027-05-05",
+    "ngayXoaBaoHanh": "2027-05-05",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Biển LED trên giá long môn ( Làn 5)",
+    "lyTrinhDau": "Km49+600",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 1.0,
+    "donViTinh": "bộ",
+    "id": 15
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH03-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản 250609.02/CТQLVH, Văn bản số 250709.02/CT-QLVH và Văn bản số 250807.04/CT-QLAH của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 327323714.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-03-06",
+    "denNgayThiCong": "2026-05-05",
+    "ngayBanGiao": "2026-05-05",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-05-05",
+    "denNgayBaoHanh": "2027-05-05",
+    "ngayXoaBaoHanh": "2027-05-05",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Biển LED hiển thị thông tin xe ( Làn 8)",
+    "lyTrinhDau": "Km49+600",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 1.0,
+    "donViTinh": "bộ",
+    "id": 16
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH03-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản 250609.02/CТQLVH, Văn bản số 250709.02/CT-QLVH và Văn bản số 250807.04/CT-QLAH của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 327323714.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-03-06",
+    "denNgayThiCong": "2026-05-05",
+    "ngayBanGiao": "2026-05-05",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-05-05",
+    "denNgayBaoHanh": "2027-05-05",
+    "ngayXoaBaoHanh": "2027-05-05",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "UPS 2kVA(Làn 8)",
+    "lyTrinhDau": "Km49+600",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 1.0,
+    "donViTinh": "cái",
+    "id": 17
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH03-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản 250609.02/CТQLVH, Văn bản số 250709.02/CT-QLVH và Văn bản số 250807.04/CT-QLAH của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 327323714.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-03-06",
+    "denNgayThiCong": "2026-05-05",
+    "ngayBanGiao": "2026-05-05",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-05-05",
+    "denNgayBaoHanh": "2027-05-05",
+    "ngayXoaBaoHanh": "2027-05-05",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Quạt gió tủ thiết bị KTTTX",
+    "lyTrinhDau": "Km74+000",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 2.0,
+    "donViTinh": "cái",
+    "id": 18
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH03-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản 250609.02/CТQLVH, Văn bản số 250709.02/CT-QLVH và Văn bản số 250807.04/CT-QLAH của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 327323714.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-03-06",
+    "denNgayThiCong": "2026-05-05",
+    "ngayBanGiao": "2026-05-05",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-05-05",
+    "denNgayBaoHanh": "2027-05-05",
+    "ngayXoaBaoHanh": "2027-05-05",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Biển LED trên giá long môn ( làn 16)",
+    "lyTrinhDau": "Km94+850",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 1.0,
+    "donViTinh": "bộ",
+    "id": 19
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH03-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản 250609.02/CТQLVH, Văn bản số 250709.02/CT-QLVH và Văn bản số 250807.04/CT-QLAH của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 327323714.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-03-06",
+    "denNgayThiCong": "2026-05-05",
+    "ngayBanGiao": "2026-05-05",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-05-05",
+    "denNgayBaoHanh": "2027-05-05",
+    "ngayXoaBaoHanh": "2027-05-05",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Bộ chuyển đổi quang điện",
+    "lyTrinhDau": "Km94+850",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 1.0,
+    "donViTinh": "bộ",
+    "id": 20
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH03-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản 250609.02/CТQLVH, Văn bản số 250709.02/CT-QLVH và Văn bản số 250807.04/CT-QLAH của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 327323714.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-03-06",
+    "denNgayThiCong": "2026-05-05",
+    "ngayBanGiao": "2026-05-05",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-05-05",
+    "denNgayBaoHanh": "2027-05-05",
+    "ngayXoaBaoHanh": "2027-05-05",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Bộ điều khiển PLC",
+    "lyTrinhDau": "Km105+417",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 1.0,
+    "donViTinh": "bộ",
+    "id": 21
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH03-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản 250609.02/CТQLVH, Văn bản số 250709.02/CT-QLVH và Văn bản số 250807.04/CT-QLAH của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 327323714.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-03-06",
+    "denNgayThiCong": "2026-05-05",
+    "ngayBanGiao": "2026-05-05",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-05-05",
+    "denNgayBaoHanh": "2027-05-05",
+    "ngayXoaBaoHanh": "2027-05-05",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Cầu vượt dân sinh B-37",
+    "lyTrinhDau": "Km12+050 (HN-HP)",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 1.0,
+    "donViTinh": "bộ",
+    "id": 22
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH03-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản 250609.02/CТQLVH, Văn bản số 250709.02/CT-QLVH và Văn bản số 250807.04/CT-QLAH của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 327323714.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-03-06",
+    "denNgayThiCong": "2026-05-05",
+    "ngayBanGiao": "2026-05-05",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-05-05",
+    "denNgayBaoHanh": "2027-05-05",
+    "ngayXoaBaoHanh": "2027-05-05",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Cầu vượt dân sinh B-38",
+    "lyTrinhDau": "Km14+891 (HN-HP)",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 1.0,
+    "donViTinh": "bộ",
+    "id": 23
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH03-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản 250609.02/CТQLVH, Văn bản số 250709.02/CT-QLVH và Văn bản số 250807.04/CT-QLAH của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 327323714.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-03-06",
+    "denNgayThiCong": "2026-05-05",
+    "ngayBanGiao": "2026-05-05",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-05-05",
+    "denNgayBaoHanh": "2027-05-05",
+    "ngayXoaBaoHanh": "2027-05-05",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Cầu vượt dân sinh B-46",
+    "lyTrinhDau": "Km50+217 (HP-HN)",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 1.0,
+    "donViTinh": "bộ",
+    "id": 24
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH03-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản 250609.02/CТQLVH, Văn bản số 250709.02/CT-QLVH và Văn bản số 250807.04/CT-QLAH của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 327323714.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-03-06",
+    "denNgayThiCong": "2026-05-05",
+    "ngayBanGiao": "2026-05-05",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-05-05",
+    "denNgayBaoHanh": "2027-05-05",
+    "ngayXoaBaoHanh": "2027-05-05",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Cầu vượt dân sinh B-47",
+    "lyTrinhDau": "Km58+150 (HN-HP)",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 1.0,
+    "donViTinh": "bộ",
+    "id": 25
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH03-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản 250609.02/CТQLVH, Văn bản số 250709.02/CT-QLVH và Văn bản số 250807.04/CT-QLAH của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 327323714.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-03-06",
+    "denNgayThiCong": "2026-05-05",
+    "ngayBanGiao": "2026-05-05",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-05-05",
+    "denNgayBaoHanh": "2027-05-05",
+    "ngayXoaBaoHanh": "2027-05-05",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Cầu B-49",
+    "lyTrinhDau": "Km74+471 (HN-HP)",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 1.0,
+    "donViTinh": "bộ",
+    "id": 26
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH03-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản 250609.02/CТQLVH, Văn bản số 250709.02/CT-QLVH và Văn bản số 250807.04/CT-QLAH của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 327323714.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-03-06",
+    "denNgayThiCong": "2026-05-05",
+    "ngayBanGiao": "2026-05-05",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-05-05",
+    "denNgayBaoHanh": "2027-05-05",
+    "ngayXoaBaoHanh": "2027-05-05",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Cầu vượt dân sinh B-50",
+    "lyTrinhDau": "Km78+100 (HN-HP)",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 1.0,
+    "donViTinh": "bộ",
+    "id": 27
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH03-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản 250609.02/CТQLVH, Văn bản số 250709.02/CT-QLVH và Văn bản số 250807.04/CT-QLAH của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 327323714.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-03-06",
+    "denNgayThiCong": "2026-05-05",
+    "ngayBanGiao": "2026-05-05",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-05-05",
+    "denNgayBaoHanh": "2027-05-05",
+    "ngayXoaBaoHanh": "2027-05-05",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Cầu vượt dân sinh A8-02",
+    "lyTrinhDau": "Km89+340 (HN-HP)",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 1.0,
+    "donViTinh": "bộ",
+    "id": 28
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH03-TC: Thi công Công trình: Sửa chữa, thay thế, khắc phục các hư hỏng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng (theo Văn bản 250609.02/CТQLVH, Văn bản số 250709.02/CT-QLVH và Văn bản số 250807.04/CT-QLAH của Công ty QLKT)",
+    "tinhTrang": "Đang bảo hành",
+    "tongMucDauTu": 327323714.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": "2026-03-06",
+    "denNgayThiCong": "2026-05-05",
+    "ngayBanGiao": "2026-05-05",
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": "2026-05-05",
+    "denNgayBaoHanh": "2027-05-05",
+    "ngayXoaBaoHanh": "2027-05-05",
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Cầu vượt dân sinh A10-02",
+    "lyTrinhDau": "Km103+024 (HN-HP)",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 1.0,
+    "donViTinh": "bộ",
+    "id": 29
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH04-TC: Sửa chữa, thay thế, khắc phục các hư hỏng cáp quang 72 core Km21+600, thiết bị dò vòng từ, UPS 10kVA, bộ chuyển mạch 8 cổng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng",
+    "tinhTrang": null,
+    "tongMucDauTu": 377137471.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": null,
+    "denNgayThiCong": null,
+    "ngayBanGiao": null,
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": null,
+    "denNgayBaoHanh": null,
+    "ngayXoaBaoHanh": null,
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Cáp quang 72 core",
+    "lyTrinhDau": "Km21+600",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 600.0,
+    "donViTinh": "m",
+    "id": 30
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH04-TC: Sửa chữa, thay thế, khắc phục các hư hỏng cáp quang 72 core Km21+600, thiết bị dò vòng từ, UPS 10kVA, bộ chuyển mạch 8 cổng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng",
+    "tinhTrang": null,
+    "tongMucDauTu": 377137471.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": null,
+    "denNgayThiCong": null,
+    "ngayBanGiao": null,
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": null,
+    "denNgayBaoHanh": null,
+    "ngayXoaBaoHanh": null,
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Thiết bị dò vòng từ Km49+600",
+    "lyTrinhDau": "Km49+600",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 2.0,
+    "donViTinh": "bộ",
+    "id": 31
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH04-TC: Sửa chữa, thay thế, khắc phục các hư hỏng cáp quang 72 core Km21+600, thiết bị dò vòng từ, UPS 10kVA, bộ chuyển mạch 8 cổng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng",
+    "tinhTrang": null,
+    "tongMucDauTu": 377137471.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": null,
+    "denNgayThiCong": null,
+    "ngayBanGiao": null,
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": null,
+    "denNgayBaoHanh": null,
+    "ngayXoaBaoHanh": null,
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Thiết bị dò vòng từ Km74+000",
+    "lyTrinhDau": "Km74+000",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 1.0,
+    "donViTinh": "bộ",
+    "id": 32
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH04-TC: Sửa chữa, thay thế, khắc phục các hư hỏng cáp quang 72 core Km21+600, thiết bị dò vòng từ, UPS 10kVA, bộ chuyển mạch 8 cổng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng",
+    "tinhTrang": null,
+    "tongMucDauTu": 377137471.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": null,
+    "denNgayThiCong": null,
+    "ngayBanGiao": null,
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": null,
+    "denNgayBaoHanh": null,
+    "ngayXoaBaoHanh": null,
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Thiết bị dò vòng từ Km96+700",
+    "lyTrinhDau": "Km96+700",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 2.0,
+    "donViTinh": "bộ",
+    "id": 33
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH04-TC: Sửa chữa, thay thế, khắc phục các hư hỏng cáp quang 72 core Km21+600, thiết bị dò vòng từ, UPS 10kVA, bộ chuyển mạch 8 cổng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng",
+    "tinhTrang": null,
+    "tongMucDauTu": 377137471.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": null,
+    "denNgayThiCong": null,
+    "ngayBanGiao": null,
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": null,
+    "denNgayBaoHanh": null,
+    "ngayXoaBaoHanh": null,
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "UPS 10kVA",
+    "lyTrinhDau": "Km96+700",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 1.0,
+    "donViTinh": "cái",
+    "id": 34
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH04-TC: Sửa chữa, thay thế, khắc phục các hư hỏng cáp quang 72 core Km21+600, thiết bị dò vòng từ, UPS 10kVA, bộ chuyển mạch 8 cổng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng",
+    "tinhTrang": null,
+    "tongMucDauTu": 377137471.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": null,
+    "denNgayThiCong": null,
+    "ngayBanGiao": null,
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": null,
+    "denNgayBaoHanh": null,
+    "ngayXoaBaoHanh": null,
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Bộ chuyển mạch mạng 8 cổng",
+    "lyTrinhDau": "Km105+000",
+    "lyTrinhCuoi": null,
+    "khoiLuong": 1.0,
+    "donViTinh": "cái",
+    "id": 35
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": "Gói thầu ITSKH04-TC: Sửa chữa, thay thế, khắc phục các hư hỏng cáp quang 72 core Km21+600, thiết bị dò vòng từ, UPS 10kVA, bộ chuyển mạch 8 cổng thuộc hệ thống ITS tuyến Đường ô tô cao tốc Hà Nội – Hải Phòng",
+    "tinhTrang": null,
+    "tongMucDauTu": 377137471.0,
+    "donViThietKe": "Công ty VDF",
+    "donViGiamSat": "Công ty VDF",
+    "donViThiCong": "Công ty QLKT",
+    "tuNgayThiCong": null,
+    "denNgayThiCong": null,
+    "ngayBanGiao": null,
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": null,
+    "denNgayBaoHanh": null,
+    "ngayXoaBaoHanh": null,
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": "Tủ kỹ thuật",
+    "lyTrinhDau": "Km2+250",
+    "lyTrinhCuoi": "Km94+850",
+    "khoiLuong": 22.0,
+    "donViTinh": "chiếc",
+    "id": 36
+  },
+  {
+    "lo_tuyen": "CT.HN_HP_CT04",
+    "tenCongTrinh": null,
+    "tinhTrang": null,
+    "tongMucDauTu": null,
+    "donViThietKe": null,
+    "donViGiamSat": null,
+    "donViThiCong": null,
+    "tuNgayThiCong": null,
+    "denNgayThiCong": null,
+    "ngayBanGiao": null,
+    "soBienBanBanGiao": null,
+    "tuNgayBaoHanh": null,
+    "denNgayBaoHanh": null,
+    "ngayXoaBaoHanh": null,
+    "soBienBanXoaBaoHanh": null,
+    "tenHangMuc": null,
+    "lyTrinhDau": null,
+    "lyTrinhCuoi": null,
+    "khoiLuong": null,
+    "donViTinh": null,
+    "id": 37
+  }
+];
+
+let data = JSON.parse(JSON.stringify(INITIAL_DATA));
+let nextId = Math.max(...data.map(r => r.id)) + 1;
+
+// ==================== STATE ====================
+let filtered = [];
+let sortKey = '';
+let sortDir = 1;
+let currentPage = 1;
+let pageSize = 25;
+let editId = null;
+let deleteId = null;
+
+// ==================== INIT ====================
+function init() {
+  populateFilters();
+  applyFilters();
+}
+
+function populateFilters() {
+  const tuyenSel = document.getElementById('filterTuyen');
+  const tinhTrangSel = document.getElementById('filterTinhTrang');
+  const tuyenVals = [...new Set(data.map(r => r.lo_tuyen).filter(Boolean))].sort();
+  const tinhTrangVals = [...new Set(data.map(r => r.tinhTrang).filter(Boolean))].sort();
+  tuyenVals.forEach(v => tuyenSel.insertAdjacentHTML('beforeend', `<option value="${v}">${v}</option>`));
+  tinhTrangVals.forEach(v => tinhTrangSel.insertAdjacentHTML('beforeend', `<option value="${v}">${v}</option>`));
+}
+
+// ==================== FILTER & SORT ====================
+function onSearch() { currentPage = 1; applyFilters(); }
+function onFilter() { currentPage = 1; applyFilters(); }
+function clearFilters() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('filterTuyen').value = '';
+  document.getElementById('filterTinhTrang').value = '';
+  currentPage = 1;
+  applyFilters();
+}
+
+function applyFilters() {
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  const tuyen = document.getElementById('filterTuyen').value;
+  const tinhTrang = document.getElementById('filterTinhTrang').value;
+
+  filtered = data.filter(r => {
+    if (tuyen && r.lo_tuyen !== tuyen) return false;
+    if (tinhTrang && r.tinhTrang !== tinhTrang) return false;
+    if (q) {
+      const haystack = [r.lo_tuyen, r.tenCongTrinh, r.tinhTrang, r.donViThietKe, r.donViGiamSat, r.donViThiCong, r.tenHangMuc, r.lyTrinhDau, r.lyTrinhCuoi, r.donViTinh].join(' ').toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if (sortKey) {
+    filtered.sort((a, b) => {
+      const av = a[sortKey] ?? '';
+      const bv = b[sortKey] ?? '';
+      if (av < bv) return -sortDir;
+      if (av > bv) return sortDir;
+      return 0;
+    });
+  }
+
+  updateStats();
+  renderTable();
+  renderPagination();
+}
+
+function sortBy(key) {
+  if (sortKey === key) sortDir = -sortDir;
+  else { sortKey = key; sortDir = 1; }
+  document.querySelectorAll('thead th').forEach(th => th.classList.remove('sort-asc', 'sort-desc'));
+  applyFilters();
+}
+
+// ==================== RENDER ====================
+function updateStats() {
+  document.getElementById('statTotal').textContent = data.length;
+  document.getElementById('statShown').textContent = filtered.length;
+  const projects = new Set(filtered.map(r => r.tenCongTrinh).filter(Boolean));
+  const tuyens = new Set(filtered.map(r => r.lo_tuyen).filter(Boolean));
+  document.getElementById('statProjects').textContent = projects.size;
+  document.getElementById('statTuyen').textContent = tuyens.size;
+}
+
+function fmt(v) { return v != null && v !== '' ? v : '<span style="color:#cbd5e0">—</span>'; }
+function fmtNum(v) {
+  if (v == null || v === '') return '<span style="color:#cbd5e0">—</span>';
+  return new Intl.NumberFormat('vi-VN').format(v);
+}
+function fmtDate(v) { if (!v) return '<span style="color:#cbd5e0">—</span>'; return v; }
+function fmtMoney(v) {
+  if (v == null || v === '') return '<span style="color:#cbd5e0">—</span>';
+  return new Intl.NumberFormat('vi-VN', {maximumFractionDigits:0}).format(v);
+}
+
+function tinhTrangBadge(v) {
+  if (!v) return '<span style="color:#cbd5e0">—</span>';
+  if (v.includes('bảo hành') || v.includes('Bảo hành')) return `<span class="badge badge-yellow">${v}</span>`;
+  if (v.includes('Hoàn thành') || v.includes('hoàn thành')) return `<span class="badge badge-green">${v}</span>`;
+  if (v.includes('thi công') || v.includes('Thi công')) return `<span class="badge badge-blue">${v}</span>`;
+  if (v.includes('Tạm dừng')) return `<span class="badge badge-red">${v}</span>`;
+  return `<span class="badge badge-gray">${v}</span>`;
+}
+
+function getPage() {
+  const start = (currentPage - 1) * pageSize;
+  return filtered.slice(start, start + pageSize);
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tbody');
+  const pageData = getPage();
+
+  if (pageData.length === 0) {
+    tbody.innerHTML = '';
+    document.getElementById('emptyState').style.display = 'block';
+    return;
+  }
+  document.getElementById('emptyState').style.display = 'none';
+
+  // Group detect: mark rows where tenCongTrinh changes
+  const rows = pageData;
+  let html = '';
+  const start = (currentPage - 1) * pageSize;
+  rows.forEach((r, i) => {
+    const prevR = i > 0 ? rows[i-1] : null;
+    const isGroupFirst = !prevR || prevR.tenCongTrinh !== r.tenCongTrinh;
+    const cls = isGroupFirst ? 'group-first' : '';
+    const shortCT = r.tenCongTrinh ? (r.tenCongTrinh.length > 80 ? r.tenCongTrinh.substring(0,77)+'...' : r.tenCongTrinh) : '';
+    const shortHM = r.tenHangMuc ? (r.tenHangMuc.length > 60 ? r.tenHangMuc.substring(0,57)+'...' : r.tenHangMuc) : '';
+    html += `
+    <tr class="${cls}" data-id="${r.id}">
+      <td class="idx">${start + i + 1}</td>
+      <td class="center">${fmt(r.lo_tuyen)}</td>
+      <td class="truncate project-cell" title="${(r.tenCongTrinh||'')}"><strong>${shortCT || '<span style="color:#cbd5e0">—</span>'}</strong></td>
+      <td class="center">${tinhTrangBadge(r.tinhTrang)}</td>
+      <td class="number">${fmtMoney(r.tongMucDauTu)}</td>
+      <td>${fmt(r.donViThietKe)}</td>
+      <td>${fmt(r.donViGiamSat)}</td>
+      <td>${fmt(r.donViThiCong)}</td>
+      <td class="center">${fmtDate(r.tuNgayThiCong)}</td>
+      <td class="center">${fmtDate(r.denNgayThiCong)}</td>
+      <td class="center">${fmtDate(r.ngayBanGiao)}</td>
+      <td class="center">${fmt(r.soBienBanBanGiao)}</td>
+      <td class="center">${fmtDate(r.tuNgayBaoHanh)}</td>
+      <td class="center">${fmtDate(r.denNgayBaoHanh)}</td>
+      <td class="center">${fmtDate(r.ngayXoaBaoHanh)}</td>
+      <td class="center">${fmt(r.soBienBanXoaBaoHanh)}</td>
+      <td class="truncate" title="${(r.tenHangMuc||'')}"><strong>${shortHM || '<span style="color:#cbd5e0">—</span>'}</strong></td>
+      <td class="center">${fmt(r.lyTrinhDau)}</td>
+      <td class="center">${fmt(r.lyTrinhCuoi)}</td>
+      <td class="number">${fmtNum(r.khoiLuong)}</td>
+      <td class="center">${fmt(r.donViTinh)}</td>
+      <td class="actions">
+        <button class="btn btn-info btn-sm" title="Xem chi tiết" onclick="viewRecord(${r.id})">&#128065;</button>
+        <button class="btn btn-warning btn-sm" title="Sửa" onclick="openEdit(${r.id})">&#9998;</button>
+        <button class="btn btn-danger btn-sm" title="Xoá" onclick="askDelete(${r.id})">&#128465;</button>
+      </td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+}
+
+function renderPagination() {
+  const total = filtered.length;
+  const totalPages = Math.ceil(total / pageSize);
+  const pag = document.getElementById('pagination');
+  if (totalPages <= 1 && total > 0) {
+    pag.innerHTML = `<span class="page-info">Tổng: ${total} bản ghi</span>
+      <select class="page-size-select" onchange="changePageSize(this.value)">
+        <option ${pageSize==25?'selected':''} value="25">25 / trang</option>
+        <option ${pageSize==50?'selected':''} value="50">50 / trang</option>
+        <option ${pageSize==100?'selected':''} value="100">100 / trang</option>
+        <option ${pageSize==9999?'selected':''} value="9999">Tất cả</option>
+      </select>`;
+    return;
+  }
+  let btns = '';
+  btns += `<button class="page-btn" onclick="goPage(1)" ${currentPage===1?'disabled':''}>&#171;</button>`;
+  btns += `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>&#8249;</button>`;
+  const range = 2;
+  for (let p = Math.max(1, currentPage - range); p <= Math.min(totalPages, currentPage + range); p++) {
+    btns += `<button class="page-btn ${p===currentPage?'active':''}" onclick="goPage(${p})">${p}</button>`;
+  }
+  btns += `<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>&#8250;</button>`;
+  btns += `<button class="page-btn" onclick="goPage(${totalPages})" ${currentPage===totalPages?'disabled':''}>&#187;</button>`;
+  btns += `<span class="page-info">Trang ${currentPage}/${totalPages} — ${total} bản ghi</span>`;
+  btns += `<select class="page-size-select" onchange="changePageSize(this.value)">
+    <option ${pageSize==25?'selected':''} value="25">25 / trang</option>
+    <option ${pageSize==50?'selected':''} value="50">50 / trang</option>
+    <option ${pageSize==100?'selected':''} value="100">100 / trang</option>
+    <option ${pageSize==9999?'selected':''} value="9999">Tất cả</option>
+  </select>`;
+  pag.innerHTML = btns;
+}
+
+function goPage(p) {
+  const total = Math.ceil(filtered.length / pageSize);
+  currentPage = Math.min(Math.max(1, p), total || 1);
+  renderTable();
+  renderPagination();
+}
+
+function changePageSize(v) {
+  pageSize = parseInt(v);
+  currentPage = 1;
+  renderTable();
+  renderPagination();
+}
+
+// ==================== CRUD ====================
+const FIELDS = ['lo_tuyen','tenCongTrinh','tinhTrang','tongMucDauTu','donViThietKe','donViGiamSat','donViThiCong','tuNgayThiCong','denNgayThiCong','ngayBanGiao','soBienBanBanGiao','tuNgayBaoHanh','denNgayBaoHanh','ngayXoaBaoHanh','soBienBanXoaBaoHanh','tenHangMuc','lyTrinhDau','lyTrinhCuoi','khoiLuong','donViTinh'];
+
+function openAdd() {
+  editId = null;
+  document.getElementById('formModalTitle').textContent = 'Thêm mới bản ghi';
+  FIELDS.forEach(f => {
+    const el = document.getElementById('f_' + f);
+    if (el) el.value = '';
+  });
+  document.getElementById('formModal').classList.add('active');
+}
+
+function openEdit(id) {
+  const r = data.find(x => x.id === id);
+  if (!r) return;
+  editId = id;
+  document.getElementById('formModalTitle').textContent = 'Sửa bản ghi #' + id;
+  FIELDS.forEach(f => {
+    const el = document.getElementById('f_' + f);
+    if (el) el.value = r[f] != null ? r[f] : '';
+  });
+  document.getElementById('formModal').classList.add('active');
+}
+
+function closeFormModal() {
+  document.getElementById('formModal').classList.remove('active');
+}
+
+function saveRecord() {
+  const lo_tuyen = document.getElementById('f_lo_tuyen').value.trim();
+  const tenCongTrinh = document.getElementById('f_tenCongTrinh').value.trim();
+  const tenHangMuc = document.getElementById('f_tenHangMuc').value.trim();
+  if (!lo_tuyen) { showToast('Vui lòng nhập Tuyến đường!', 'error'); return; }
+  if (!tenCongTrinh) { showToast('Vui lòng nhập Tên công trình!', 'error'); return; }
+  if (!tenHangMuc) { showToast('Vui lòng nhập Hạng mục!', 'error'); return; }
+
+  const rec = {};
+  FIELDS.forEach(f => {
+    const el = document.getElementById('f_' + f);
+    if (!el) { rec[f] = null; return; }
+    let v = el.value.trim();
+    if (f === 'tongMucDauTu' || f === 'khoiLuong') v = v !== '' ? parseFloat(v) : null;
+    else if (v === '') v = null;
+    rec[f] = v;
+  });
+
+  if (editId) {
+    const idx = data.findIndex(x => x.id === editId);
+    if (idx >= 0) { data[idx] = { ...data[idx], ...rec }; }
+    showToast('Đã cập nhật bản ghi #' + editId, 'success');
+  } else {
+    rec.id = nextId++;
+    data.push(rec);
+    showToast('Đã thêm bản ghi mới', 'success');
+  }
+  closeFormModal();
+  refreshFilters();
+  applyFilters();
+}
+
+function askDelete(id) {
+  const r = data.find(x => x.id === id);
+  deleteId = id;
+  document.getElementById('confirmDesc').textContent = r ? (r.tenHangMuc || r.tenCongTrinh || 'ID ' + id) : 'ID ' + id;
+  document.getElementById('confirmModal').classList.add('active');
+}
+
+function closeConfirm() {
+  document.getElementById('confirmModal').classList.remove('active');
+}
+
+function confirmDelete() {
+  data = data.filter(x => x.id !== deleteId);
+  closeConfirm();
+  showToast('Đã xoá bản ghi', 'success');
+  refreshFilters();
+  applyFilters();
+}
+
+function viewRecord(id) {
+  const r = data.find(x => x.id === id);
+  if (!r) return;
+  const labels = {
+    lo_tuyen: 'Tuyến đường', tenCongTrinh: 'Công trình/Dự án', tinhTrang: 'Tình trạng',
+    tongMucDauTu: 'Tổng mức đầu tư', donViThietKe: 'ĐV Thiết kế', donViGiamSat: 'ĐV Giám sát',
+    donViThiCong: 'ĐV Thi công', tuNgayThiCong: 'Thi công từ ngày', denNgayThiCong: 'Thi công đến ngày',
+    ngayBanGiao: 'Ngày bàn giao', soBienBanBanGiao: 'Số BB bàn giao',
+    tuNgayBaoHanh: 'Bảo hành từ ngày', denNgayBaoHanh: 'Bảo hành đến ngày',
+    ngayXoaBaoHanh: 'Ngày xoá bảo hành', soBienBanXoaBaoHanh: 'Số BB xoá bảo hành',
+    tenHangMuc: 'Hạng mục', lyTrinhDau: 'Lý trình đầu', lyTrinhCuoi: 'Lý trình cuối',
+    khoiLuong: 'Khối lượng', donViTinh: 'Đơn vị tính'
+  };
+  let html = '<table style="width:100%;border-collapse:collapse">';
+  FIELDS.forEach(f => {
+    let v = r[f];
+    if (f === 'tongMucDauTu' && v != null) v = new Intl.NumberFormat('vi-VN').format(v) + ' VNĐ';
+    html += `<tr style="border-bottom:1px solid #e2e8f0">
+      <td style="padding:8px 10px;font-weight:600;color:#4a5568;width:40%;background:#f7fafc;font-size:12px">${labels[f]}</td>
+      <td style="padding:8px 10px;font-size:13px">${v != null && v !== '' ? v : '<span style="color:#a0aec0">—</span>'}</td>
+    </tr>`;
+  });
+  html += '</table>';
+  document.getElementById('viewBody').innerHTML = html;
+  document.getElementById('viewModal').classList.add('active');
+}
+
+function closeView() {
+  document.getElementById('viewModal').classList.remove('active');
+}
+
+function refreshFilters() {
+  const tuyenSel = document.getElementById('filterTuyen');
+  const tinhTrangSel = document.getElementById('filterTinhTrang');
+  const tv = tuyenSel.value, tv2 = tinhTrangSel.value;
+  tuyenSel.innerHTML = '<option value="">-- Tất cả tuyến --</option>';
+  tinhTrangSel.innerHTML = '<option value="">-- Tất cả tình trạng --</option>';
+  [...new Set(data.map(r => r.lo_tuyen).filter(Boolean))].sort().forEach(v => tuyenSel.insertAdjacentHTML('beforeend', `<option value="${v}" ${v===tv?'selected':''}>${v}</option>`));
+  [...new Set(data.map(r => r.tinhTrang).filter(Boolean))].sort().forEach(v => tinhTrangSel.insertAdjacentHTML('beforeend', `<option value="${v}" ${v===tv2?'selected':''}>${v}</option>`));
+}
+
+// ==================== EXPORT ====================
+function exportExcel() {
+  const headers = ['Tuyến đường','Công trình/Dự án','Tình trạng','Tổng mức đầu tư','ĐV Thiết kế','ĐV Giám sát','ĐV Thi công','Thi công từ ngày','Thi công đến ngày','Ngày bàn giao','Số BB bàn giao','Bảo hành từ ngày','Bảo hành đến ngày','Ngày xoá bảo hành','Số BB xoá BH','Hạng mục','Lý trình đầu','Lý trình cuối','Khối lượng','Đơn vị tính'];
+  const rows = [headers];
+  filtered.forEach(r => {
+    rows.push(FIELDS.map(f => r[f] != null ? r[f] : ''));
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [10,40,15,18,15,15,15,14,14,14,15,14,14,14,18,30,14,14,12,12].map(w => ({wch: w}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'SuaChuaDinhKy');
+  const date = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `SuaChuaDinhKy_${date}.xlsx`);
+  showToast('Đã xuất file Excel', 'success');
+}
+
+// ==================== IMPORT ====================
+function importExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, {type: 'binary', cellDates: true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header: 1, defval: null});
+      if (rows.length < 2) { showToast('File không có dữ liệu!', 'error'); return; }
+      // Try to detect header row
+      const hdr = rows[0].map(h => String(h || '').trim().toLowerCase());
+      const colMap = {
+        'tuyến đường': 'lo_tuyen', 'lo_tuyen': 'lo_tuyen',
+        'công trình/dự án': 'tenCongTrinh', 'tencongTrinh': 'tenCongTrinh', 'tencongTrinh': 'tenCongTrinh',
+        'tình trạng': 'tinhTrang', 'tinhtrang': 'tinhTrang',
+        'tổng mức đầu tư': 'tongMucDauTu', 'tongmucdautu': 'tongMucDauTu',
+        'đv thiết kế': 'donViThietKe', 'donvithietke': 'donViThietKe',
+        'đv giám sát': 'donViGiamSat', 'donvigiamsat': 'donViGiamSat',
+        'đv thi công': 'donViThiCong', 'donvithicong': 'donViThiCong',
+        'thi công từ ngày': 'tuNgayThiCong', 'tungaythicong': 'tuNgayThiCong',
+        'thi công đến ngày': 'denNgayThiCong', 'dennGaythicong': 'denNgayThiCong',
+        'ngày bàn giao': 'ngayBanGiao', 'ngayBanGiao': 'ngayBanGiao',
+        'số bb bàn giao': 'soBienBanBanGiao',
+        'bảo hành từ ngày': 'tuNgayBaoHanh',
+        'bảo hành đến ngày': 'denNgayBaoHanh',
+        'ngày xoá bảo hành': 'ngayXoaBaoHanh',
+        'số bb xoá bh': 'soBienBanXoaBaoHanh',
+        'hạng mục': 'tenHangMuc', 'tenhangmuc': 'tenHangMuc',
+        'lý trình đầu': 'lyTrinhDau', 'lytrinhdau': 'lyTrinhDau',
+        'lý trình cuối': 'lyTrinhCuoi', 'lytrhincuoi': 'lyTrinhCuoi',
+        'khối lượng': 'khoiLuong', 'khoiluong': 'khoiLuong',
+        'đơn vị tính': 'donViTinh', 'donvitinh': 'donViTinh'
+      };
+      const fieldIdx = {};
+      hdr.forEach((h, i) => { const k = colMap[h] || colMap[h.replace(/\s+/g,'')]; if (k) fieldIdx[k] = i; });
+
+      let imported = 0;
+      for (let ri = 1; ri < rows.length; ri++) {
+        const row = rows[ri];
+        if (!row || row.every(c => c == null || c === '')) continue;
+        const rec = { id: nextId++ };
+        FIELDS.forEach(f => {
+          let v = fieldIdx[f] !== undefined ? row[fieldIdx[f]] : null;
+          if (v instanceof Date) v = v.toISOString().slice(0,10);
+          if (v != null && typeof v === 'string') v = v.trim() || null;
+          rec[f] = v != null ? v : null;
+        });
+        data.push(rec);
+        imported++;
+      }
+      refreshFilters();
+      applyFilters();
+      showToast(`Đã nhập ${imported} bản ghi`, 'success');
+    } catch(err) {
+      showToast('Lỗi khi đọc file: ' + err.message, 'error');
+    }
+    input.value = '';
+  };
+  reader.readAsBinaryString(file);
+}
+
+// ==================== TOAST ====================
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.animation = 'slideOut .3s ease forwards';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+// Close modals on overlay click
+['formModal','confirmModal','viewModal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('active');
+  });
+});
+
+// Keyboard ESC close
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    ['formModal','confirmModal','viewModal'].forEach(id => document.getElementById(id).classList.remove('active'));
+  }
+});
+
+init();
+</script>
+</body>
+</html>
