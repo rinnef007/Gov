@@ -193,7 +193,24 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:var(--bg)
 .fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--blue2);box-shadow:0 0 0 3px rgba(49,130,206,.15)}
 .fg textarea{resize:vertical;min-height:60px}
 .fdiv{grid-column:1/-1;border:none;border-top:1.5px dashed var(--border);margin:4px 0}
-.fsect{grid-column:1/-1;font-size:11px;font-weight:700;color:var(--blue2);text-transform:uppercase;letter-spacing:.5px;padding:4px 0 2px;border-bottom:1.5px solid var(--blueli);margin-bottom:2px}
+.fsect{grid-column:1/-1;font-size:11px;font-weight:700;color:var(--blue2);text-transform:uppercase;letter-spacing:.5px;padding:4px 0 2px;border-bottom:1.5px solid var(--blueli);margin-bottom:2px;display:flex;align-items:center;justify-content:space-between}
+/* ── MULTI-ITEM TABLE in form ── */
+.hm-wrap{grid-column:1/-1;overflow-x:auto;border:1.5px solid var(--border);border-radius:10px;background:#fff}
+.hm-tbl{width:100%;border-collapse:collapse;min-width:640px}
+.hm-tbl thead th{background:#2c5282;color:#fff;padding:8px 10px;font-size:11px;font-weight:700;text-align:left;white-space:nowrap;border-right:1px solid rgba(255,255,255,.1)}
+.hm-tbl thead th:last-child{width:38px;text-align:center;border-right:none}
+.hm-tbl tbody tr{border-bottom:1px solid var(--border)}
+.hm-tbl tbody tr:last-child{border-bottom:none}
+.hm-tbl tbody tr:hover{background:#f7faff}
+.hm-tbl td{padding:6px 8px;border-right:1px solid #f0f4f8;vertical-align:middle}
+.hm-tbl td:last-child{text-align:center;border-right:none}
+.hm-tbl td.ix{text-align:center;color:#a0aec0;font-size:11px;width:32px}
+.hm-input{width:100%;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12.5px;outline:none;font-family:inherit;background:#fff;transition:border .15s}
+.hm-input:focus{border-color:var(--blue2);box-shadow:0 0 0 2px rgba(49,130,206,.15)}
+.hm-input.hm-ta{resize:none;min-height:34px;height:34px}
+.hm-del{background:var(--reli);border:none;color:var(--red);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.hm-del:hover{background:#fed7d7}
+.hm-add-row{padding:10px 14px;border-top:1px dashed var(--border);text-align:center}
 .mform-ftr{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;background:#fafbfc}
 
 /* Confirm */
@@ -347,12 +364,29 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:var(--bg)
         <div class="fg"><label>Ngày xoá bảo hành</label><input type="date" id="f_ngayXoaBaoHanh"></div>
         <div class="fg"><label>Số biên bản xoá bảo hành</label><input type="text" id="f_soBienBanXoaBaoHanh"></div>
         <hr class="fdiv">
-        <div class="fsect">🔧 Hạng mục sửa chữa</div>
-        <div class="fg full"><label>Hạng mục <span class="req">*</span></label><textarea id="f_tenHangMuc" rows="2"></textarea></div>
-        <div class="fg"><label>Lý trình đầu</label><input type="text" id="f_lyTrinhDau" placeholder="Km10+300"></div>
-        <div class="fg"><label>Lý trình cuối</label><input type="text" id="f_lyTrinhCuoi" placeholder="Km10+500"></div>
-        <div class="fg"><label>Khối lượng</label><input type="number" id="f_khoiLuong" step="any" min="0"></div>
-        <div class="fg"><label>Đơn vị tính</label><input type="text" id="f_donViTinh" placeholder="m, cái, bộ..."></div>
+        <div class="fsect">
+          <span>🔧 Hạng mục sửa chữa <span class="req">*</span></span>
+          <button type="button" class="btn btn-primary btn-sm" onclick="addHMRow()" id="btnAddHM">＋ Thêm hạng mục</button>
+        </div>
+        <div class="hm-wrap full">
+          <table class="hm-tbl">
+            <thead>
+              <tr>
+                <th style="width:32px">#</th>
+                <th>Tên hạng mục</th>
+                <th style="min-width:120px">Lý trình đầu</th>
+                <th style="min-width:120px">Lý trình cuối</th>
+                <th style="min-width:95px">Khối lượng</th>
+                <th style="min-width:75px">ĐVT</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="hmTbody"></tbody>
+          </table>
+          <div class="hm-add-row">
+            <button type="button" class="btn btn-outline btn-sm" onclick="addHMRow()">＋ Thêm dòng hạng mục</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="mform-ftr">
@@ -667,61 +701,135 @@ function sortDet(k){
 function closeDet(){document.getElementById('ovDet').classList.remove('active')}
 
 // ── CRUD ──
+// ── MULTI-ROW HANGMUC HELPERS ──
+const PF=['lo_tuyen','tenCongTrinh','tinhTrang','tongMucDauTu','donViThietKe','donViGiamSat','donViThiCong','tuNgayThiCong','denNgayThiCong','ngayBanGiao','soBienBanBanGiao','tuNgayBaoHanh','denNgayBaoHanh','ngayXoaBaoHanh','soBienBanXoaBaoHanh'];
+
+function addHMRow(vals){
+  const tbody=document.getElementById('hmTbody');
+  const idx=tbody.rows.length+1;
+  const v=vals||{};
+  const tr=document.createElement('tr');
+  tr.innerHTML=`
+    <td class="ix">${idx}</td>
+    <td><textarea class="hm-input hm-ta" placeholder="Tên hạng mục..." rows="1">${v.tenHangMuc||''}</textarea></td>
+    <td><input class="hm-input" type="text" placeholder="Km10+300" value="${v.lyTrinhDau||''}"></td>
+    <td><input class="hm-input" type="text" placeholder="Km10+500" value="${v.lyTrinhCuoi||''}"></td>
+    <td><input class="hm-input" type="number" step="any" min="0" placeholder="0" value="${v.khoiLuong!=null?v.khoiLuong:''}"></td>
+    <td><input class="hm-input" type="text" placeholder="m, cái..." value="${v.donViTinh||''}"></td>
+    <td><button type="button" class="hm-del" onclick="removeHMRow(this)" title="Xoá dòng">✕</button></td>`;
+  tbody.appendChild(tr);
+  renumberHM();
+  // Auto-resize textarea
+  const ta=tr.querySelector('textarea');
+  ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=ta.scrollHeight+'px';});
+}
+
+function removeHMRow(btn){
+  const tbody=document.getElementById('hmTbody');
+  if(tbody.rows.length<=1){toast('Phải có ít nhất 1 hạng mục','e');return;}
+  btn.closest('tr').remove();
+  renumberHM();
+}
+
+function renumberHM(){
+  document.querySelectorAll('#hmTbody tr').forEach((tr,i)=>{
+    const ix=tr.querySelector('.ix');
+    if(ix)ix.textContent=i+1;
+  });
+}
+
+function getHMRows(){
+  const rows=[];
+  document.querySelectorAll('#hmTbody tr').forEach(tr=>{
+    const cells=tr.querySelectorAll('td');
+    const hm=(cells[1]?.querySelector('textarea,input')?.value||'').trim();
+    const ltd=(cells[2]?.querySelector('input')?.value||'').trim()||null;
+    const ltc=(cells[3]?.querySelector('input')?.value||'').trim()||null;
+    const klv=(cells[4]?.querySelector('input')?.value||'').trim();
+    const kl=klv!==''?parseFloat(klv):null;
+    const dvt=(cells[5]?.querySelector('input')?.value||'').trim()||null;
+    rows.push({tenHangMuc:hm||null,lyTrinhDau:ltd,lyTrinhCuoi:ltc,khoiLuong:kl,donViTinh:dvt});
+  });
+  return rows;
+}
+
+function clearHMTable(){
+  document.getElementById('hmTbody').innerHTML='';
+}
+
+function initFormModal(title,prefill,hmRows){
+  document.getElementById('formTitle').textContent=title;
+  PF.forEach(f=>{
+    const el=document.getElementById('f_'+f);
+    if(el)el.value=prefill&&prefill[f]!=null?prefill[f]:'';
+  });
+  clearHMTable();
+  if(hmRows&&hmRows.length)hmRows.forEach(r=>addHMRow(r));
+  else addHMRow();
+  document.getElementById('ovForm').classList.add('active');
+}
+
 function openAdd(){
   editId=null;
-  document.getElementById('formTitle').textContent='Thêm mới bản ghi';
-  FIELDS.forEach(f=>{const el=document.getElementById('f_'+f);if(el)el.value='';});
-  document.getElementById('ovForm').classList.add('active');
+  initFormModal('Thêm mới bản ghi',null,null);
 }
 
 function openAddTo(key){
   const s=data.find(r=>pk(r)===key);
   editId=null;
-  document.getElementById('formTitle').textContent='Thêm hạng mục vào công trình';
-  const pf=['lo_tuyen','tenCongTrinh','tinhTrang','tongMucDauTu','donViThietKe','donViGiamSat','donViThiCong','tuNgayThiCong','denNgayThiCong','ngayBanGiao','soBienBanBanGiao','tuNgayBaoHanh','denNgayBaoHanh','ngayXoaBaoHanh','soBienBanXoaBaoHanh'];
-  FIELDS.forEach(f=>{
-    const el=document.getElementById('f_'+f);
-    if(!el)return;
-    if(s&&pf.includes(f))el.value=s[f]!=null?s[f]:'';
-    else el.value='';
-  });
-  document.getElementById('ovForm').classList.add('active');
+  initFormModal('Thêm hạng mục vào công trình',s,null);
 }
 
 function openEdit(id){
   const r=data.find(x=>x.id===id);
   if(!r)return;
   editId=id;
-  document.getElementById('formTitle').textContent='Sửa hạng mục #'+id;
-  FIELDS.forEach(f=>{const el=document.getElementById('f_'+f);if(el)el.value=r[f]!=null?r[f]:'';});
-  document.getElementById('ovForm').classList.add('active');
+  // Show "Sửa" mode: single row, disable "thêm dòng" button
+  document.getElementById('btnAddHM').style.display='none';
+  document.querySelector('.hm-add-row').style.display='none';
+  initFormModal('Sửa hạng mục #'+id,r,[{tenHangMuc:r.tenHangMuc,lyTrinhDau:r.lyTrinhDau,lyTrinhCuoi:r.lyTrinhCuoi,khoiLuong:r.khoiLuong,donViTinh:r.donViTinh}]);
 }
 
-function closeForm(){document.getElementById('ovForm').classList.remove('active')}
+function closeForm(){
+  document.getElementById('ovForm').classList.remove('active');
+  // Restore add buttons for next open
+  document.getElementById('btnAddHM').style.display='';
+  document.querySelector('.hm-add-row').style.display='';
+}
 
 function saveRec(){
   const lo=document.getElementById('f_lo_tuyen').value.trim();
   const ct=document.getElementById('f_tenCongTrinh').value.trim();
-  const hm=document.getElementById('f_tenHangMuc').value.trim();
   if(!lo){toast('Vui lòng nhập Tuyến đường!','e');return;}
   if(!ct){toast('Vui lòng nhập Tên công trình!','e');return;}
-  if(!hm){toast('Vui lòng nhập Hạng mục!','e');return;}
-  const rec={};
-  FIELDS.forEach(f=>{
+
+  // Project-level fields
+  const proj={};
+  PF.forEach(f=>{
     const el=document.getElementById('f_'+f);
-    if(!el){rec[f]=null;return;}
+    if(!el){proj[f]=null;return;}
     let v=el.value.trim();
-    if(f==='tongMucDauTu'||f==='khoiLuong')v=v!==''?parseFloat(v):null;
+    if(f==='tongMucDauTu')v=v!==''?parseFloat(v):null;
     else v=v||null;
-    rec[f]=v;
+    proj[f]=v;
   });
+
+  const hmRows=getHMRows();
+  // Validate: at least 1 non-empty hạng mục
+  const validRows=hmRows.filter(r=>r.tenHangMuc);
+  if(!validRows.length){toast('Vui lòng nhập ít nhất 1 hạng mục!','e');return;}
+
   if(editId){
+    // Edit mode: single row, update in place
     const i=data.findIndex(x=>x.id===editId);
-    if(i>=0)data[i]={...data[i],...rec};
-    toast('Đã cập nhật bản ghi #'+editId,'s');
+    if(i>=0)data[i]={...data[i],...proj,...validRows[0]};
+    toast('Đã cập nhật hạng mục #'+editId,'s');
   }else{
-    rec.id=nid++;data.push(rec);
-    toast('Đã thêm hạng mục mới','s');
+    // Add mode: create one record per valid row
+    validRows.forEach(hm=>{
+      data.push({id:nid++,...proj,...hm});
+    });
+    toast(`Đã thêm ${validRows.length} hạng mục`,'s');
   }
   closeForm();
   refreshSels();
